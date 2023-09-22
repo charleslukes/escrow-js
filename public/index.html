@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>rollup-starter-app</title>
+
+    <style>
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        color: #333;
+        font-weight: 300;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>rollup-starter-app</h1>
+    <p>The time is <span id="time-now">...</span></p>
+    <button class="fund">Fund Escrow</button>
+    <button class="update">Update Escrow</button>
+    <button class="withdraw">Withdraw Escrow</button>
+    <script src="bundle.js"></script>
+    <script>
+      const getProvider = () => {
+        if ("phantom" in window) {
+          const provider = window.phantom?.solana;
+
+          if (provider?.isPhantom) {
+            return provider;
+          }
+        }
+
+        window.open("https://phantom.app/", "_blank");
+      };
+
+	  const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+
+      const provider = getProvider(); // see "Detecting the Provider"
+      const connect = async () => {
+        try {
+          const resp = await provider.request({ method: "connect" });
+          console.log("pubkey", resp.publicKey.toString());
+		  return resp;
+        } catch (err) {
+          console.log(err);
+          // { code: 4001, message: 'User rejected the request.' }
+        }
+      };
+
+      connect().then((resp) => {
+		console.log('in==> ',resp.publicKey.toString());
+        const fund = document.querySelector(".fund");
+        fund.addEventListener("click", () => {
+          const escrow = new GibEscrow("devnet", resp.publicKey.toString(), usdcDevnetAddr);
+          console.log(escrow);
+        });
+      });
+    </script>
+  </body>
+</html>
