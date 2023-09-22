@@ -17,9 +17,7 @@ import {
 import { Buffer } from "buffer";
 
 const commitment: Commitment = "confirmed";
-const seed = Buffer.from("124343");
-
-console.log({seed})
+const seed = new anchor.BN(1234);
 
 const opts = {
   preflightCommitment: "recent",
@@ -70,7 +68,7 @@ class GibEscrow {
       [
         Buffer.from("escrow"),
         this.makerPublicKey.toBytes(),
-        seed.reverse(),
+        seed.toArrayLike(Buffer, "be", 32).reverse(),
       ],
       this.program.programId
     )[0];
