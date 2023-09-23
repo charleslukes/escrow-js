@@ -1,5 +1,6 @@
 {
-  "name": "rollup-starter-app",
+  "name": "gib-escrow-js",
+  "version": "1.0.0",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.0.0",
     "@rollup/plugin-json": "^6.0.0",
