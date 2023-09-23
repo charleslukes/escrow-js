@@ -30,8 +30,6 @@ class GibEscrow {
   vault: anchor.web3.PublicKey;
   tokenPubKey: PublicKey;
   makerPublicKey: PublicKey;
-  makerAtaPublicKey: PublicKey;
-
   program: anchor.Program<Escrow>;
   provider: anchor.AnchorProvider;
   connection: Connection;
@@ -146,10 +144,8 @@ class GibEscrow {
   };
 
   private confirmTx = async (signature: string) => {
-    const latestBlockHash = await anchor
-      .getProvider()
-      .connection.getLatestBlockhash();
-    await anchor.getProvider().connection.confirmTransaction(
+    const latestBlockHash = await this.connection.getLatestBlockhash();
+    await this.connection.confirmTransaction(
       {
         signature,
         ...latestBlockHash,
@@ -160,7 +156,7 @@ class GibEscrow {
 
   private ownerTokenAta = async (owner: Keypair, tokenPubKey: PublicKey) => {
     const tAccount = await getOrCreateAssociatedTokenAccount(
-      anchor.getProvider().connection,
+      this.connection,
       owner,
       tokenPubKey,
       owner.publicKey,
