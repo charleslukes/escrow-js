@@ -39,7 +39,7 @@
       const connect = async () => {
         try {
           const resp = await provider.request({ method: "connect" });
-          console.log("pubkey", resp.publicKey.toString());
+          console.log("pubkey", resp.publicKey.toString(), {resp, provider});
 		  return resp;
         } catch (err) {
           console.log(err);
@@ -52,7 +52,8 @@
         const fund = document.querySelector(".fund");
         fund.addEventListener("click", () => {
           const escrow = new GibEscrow("devnet", resp.publicKey.toString(), usdcDevnetAddr);
-          console.log(escrow);
+		  // not sure how to pass keypair yet
+          escrow.fundEscrow(provider, 10);
         });
       });
     </script>
