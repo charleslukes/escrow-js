@@ -28,7 +28,8 @@ export default {
     json(),
     typescript(),
     nodePolyfills({
-      exclude: '/node_modules'
+      exclude: ['node_modules'],
+      crypto: true
     }),
     production && terser(), // minify, but only in production
   ],
