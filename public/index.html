@@ -56,9 +56,13 @@
         const escrow = new GibEscrow("devnet", resp.publicKey, usdcDevnetAddr);
         const fund = document.querySelector(".fund");
         fund.addEventListener("click", async () => {
-          // not sure how to pass keypair yet
-          const signature = await escrow.fundEscrow(provider, 0.1);
-          console.log({ signature });
+          try {
+            // not sure how to pass keypair yet
+            const signature = await escrow.fundEscrow(provider, 0.1);
+            console.log({ signature });
+          } catch (error) {
+            console.log(error);
+          }
         });
       })();
     </script>
