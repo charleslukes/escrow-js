@@ -27,7 +27,7 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
-    "dev": "npm-run-all --parallel start watch",
+    "dev": "npm-run-all --parallel watch",
     "start": "serve public"
   }
 }
