@@ -21,41 +21,46 @@
     <button class="withdraw">Withdraw Escrow</button>
     <script src="bundle.js"></script>
     <script>
-      const getProvider = () => {
-        if ("phantom" in window) {
-          const provider = window.phantom?.solana;
+      (async () => {
+        const getProvider = () => {
+          if ("phantom" in window) {
+            const provider = window.phantom?.solana;
 
-          if (provider?.isPhantom) {
-            return provider;
+            if (provider?.isPhantom) {
+              return provider;
+            }
           }
-        }
 
-        window.open("https://phantom.app/", "_blank");
-      };
+          window.open("https://phantom.app/", "_blank");
+        };
 
-	  const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+        const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
-      const provider = getProvider(); // see "Detecting the Provider"
-      const connect = async () => {
-        try {
-          const resp = await provider.request({ method: "connect" });
-          console.log("pubkey", resp.publicKey.toString(), {resp, provider});
-		  return resp;
-        } catch (err) {
-          console.log(err);
-          // { code: 4001, message: 'User rejected the request.' }
-        }
-      };
+        const provider = getProvider(); // see "Detecting the Provider"
+        const connect = async () => {
+          try {
+            const resp = await provider.request({ method: "connect" });
+            console.log("pubkey", resp.publicKey.toString(), {
+              resp,
+              provider,
+              k: provider.publicKey.toString(),
+            });
+            return resp;
+          } catch (err) {
+            console.log(err);
+            // { code: 4001, message: 'User rejected the request.' }
+          }
+        };
 
-      connect().then((resp) => {
-		console.log('in==> ',resp.publicKey.toString());
+        const resp = await connect();
+        const escrow = new GibEscrow("devnet", resp.publicKey, usdcDevnetAddr);
         const fund = document.querySelector(".fund");
-        fund.addEventListener("click", () => {
-          const escrow = new GibEscrow("devnet", resp.publicKey.toString(), usdcDevnetAddr);
-		  // not sure how to pass keypair yet
-          escrow.fundEscrow(provider, 10);
+        fund.addEventListener("click", async () => {
+          // not sure how to pass keypair yet
+          const signature = await escrow.fundEscrow(provider, 0.1);
+          console.log({ signature });
         });
-      });
+      })();
     </script>
   </body>
 </html>
