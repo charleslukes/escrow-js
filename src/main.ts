@@ -24,11 +24,12 @@ import {
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { Buffer } from "buffer";
+import { randomBytes } from "../utils/helper";
 
 window.Buffer = Buffer;
 
 const commitment: Commitment = "confirmed";
-const seed = new anchor.BN(1234);
+const seed = new anchor.BN(randomBytes(8));
 
 const opts = {
   preflightCommitment: "recent",
@@ -55,7 +56,7 @@ class GibEscrow {
       throw new Error("Install a solana wallet");
     }
 
-    this.makerPublicKey = new PublicKey(makerPublicKey);
+    this.makerPublicKey = makerPublicKey;
     this.tokenPubKey = new PublicKey(tokenPubKey);
     this.connection = new Connection(clusterApiUrl(network), commitment);
     this.provider = new anchor.AnchorProvider(this.connection, wallet, {
@@ -104,13 +105,16 @@ class GibEscrow {
         systemProgram: SystemProgram.programId,
       })
       .transaction();
+
+    console.log("first ==> ", transaction);
     let { blockhash } = await this.connection.getLatestBlockhash();
 
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletProvider.publicKey;
 
-    const { signature } = await walletProvider.signAndSendTransaction(
-      transaction
+    const signedTransaction = await walletProvider.signTransaction(transaction);
+    const signature = await this.connection.sendRawTransaction(
+      signedTransaction.serialize()
     );
     return signature;
   };
