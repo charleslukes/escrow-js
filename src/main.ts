@@ -29,7 +29,6 @@ import { randomBytes } from "../utils/helper";
 window.Buffer = Buffer;
 
 const commitment: Commitment = "confirmed";
-const seed = new anchor.BN(randomBytes(8));
 
 const opts = {
   preflightCommitment: "recent",
@@ -37,6 +36,7 @@ const opts = {
 
 class GibEscrow {
   programId = new PublicKey("AWLErDWVWkjWYRhkCdnaUxSrKYQqPxi7qGXvHNB1rQWk");
+  seed: anchor.BN;
   auth: anchor.web3.PublicKey;
   escrow: anchor.web3.PublicKey;
   vault: anchor.web3.PublicKey;
@@ -62,6 +62,7 @@ class GibEscrow {
     this.provider = new anchor.AnchorProvider(this.connection, wallet, {
       commitment,
     });
+    this.seed =  new anchor.BN(randomBytes(8))
 
     this.program = new anchor.Program<Escrow>(
       IDL,
@@ -78,7 +79,7 @@ class GibEscrow {
       [
         Buffer.from("escrow"),
         this.makerPublicKey.toBytes(),
-        seed.toArrayLike(Buffer, "be", 32).reverse(),
+        this.seed.toArrayLike(Buffer, "be", 32).reverse(),
       ],
       this.program.programId
     )[0];
@@ -92,7 +93,7 @@ class GibEscrow {
   fundEscrow = async (walletProvider: any, amount: number) => {
     const makerAta = await this.ownerTokenAta(walletProvider, this.tokenPubKey);
     const transaction = await this.program.methods
-      .make(seed, new anchor.BN(amount * 1e6))
+      .make(this.seed, new anchor.BN(amount * 1e6))
       .accounts({
         maker: walletProvider.publicKey,
         makerAta,
