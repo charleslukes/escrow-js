@@ -36,7 +36,7 @@
 
         const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
-        const provider = getProvider(); // see "Detecting the Provider"
+        const provider = await getProvider(); // see "Detecting the Provider"
         const connect = async () => {
           try {
             const resp = await provider.request({ method: "connect" });
@@ -55,10 +55,24 @@
         const resp = await connect();
         const escrow = new GibEscrow("devnet", resp.publicKey, usdcDevnetAddr);
         const fund = document.querySelector(".fund");
+        const updateEscrow = document.querySelector(".update");
+
+        // fund
         fund.addEventListener("click", async () => {
           try {
             // not sure how to pass keypair yet
             const signature = await escrow.fundEscrow(provider, 0.01);
+            console.log({ signature });
+          } catch (error) {
+            console.log(error);
+          }
+        });
+
+        // update
+        updateEscrow.addEventListener("click", async () => {
+          try {
+            // not sure how to pass keypair yet
+            const signature = await escrow.updateEscrow(provider, 0.01);
             console.log({ signature });
           } catch (error) {
             console.log(error);
