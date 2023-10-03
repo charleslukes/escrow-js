@@ -58,7 +58,7 @@
         fund.addEventListener("click", async () => {
           try {
             // not sure how to pass keypair yet
-            const signature = await escrow.fundEscrow(provider, 0.1);
+            const signature = await escrow.fundEscrow(provider, 0.01);
             console.log({ signature });
           } catch (error) {
             console.log(error);
