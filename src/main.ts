@@ -24,7 +24,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { Buffer } from "buffer";
-import { randomBytes } from "../utils/helper";
+import { randomU64 } from "../utils/helper";
 
 window.Buffer = Buffer;
 
@@ -63,7 +63,7 @@ class GibEscrow {
       commitment,
     });
 
-    this.seed = new anchor.BN(randomBytes(8));
+    this.seed = new anchor.BN(randomU64().toString());
 
     this.program = new anchor.Program<Escrow>(
       IDL,
