@@ -62,7 +62,8 @@ class GibEscrow {
     this.provider = new anchor.AnchorProvider(this.connection, wallet, {
       commitment,
     });
-    this.seed =  new anchor.BN(randomBytes(8))
+
+    this.seed = new anchor.BN(randomBytes(8));
 
     this.program = new anchor.Program<Escrow>(
       IDL,
@@ -79,7 +80,7 @@ class GibEscrow {
       [
         Buffer.from("escrow"),
         this.makerPublicKey.toBytes(),
-        this.seed.toArrayLike(Buffer, "be", 32).reverse(),
+        this.seed.toArrayLike(Buffer, "le", 8).reverse(),
       ],
       this.program.programId
     )[0];
@@ -107,7 +108,6 @@ class GibEscrow {
       })
       .transaction();
 
-    console.log("first ==> ", transaction);
     let { blockhash } = await this.connection.getLatestBlockhash();
 
     transaction.recentBlockhash = blockhash;
@@ -120,12 +120,12 @@ class GibEscrow {
     return signature;
   };
 
-  updateEscrow = async (maker: Keypair, amount: number) => {
-    const makerAta = await this.ownerTokenAta(maker, this.tokenPubKey);
-    const signature = await this.program.methods
+  updateEscrow = async (walletProvider: any, amount: number) => {
+    const makerAta = await this.ownerTokenAta(walletProvider, this.tokenPubKey);
+    const transaction = await this.program.methods
       .update(new anchor.BN(amount * 1e6))
       .accounts({
-        maker: maker.publicKey,
+        maker: walletProvider.publicKey,
         makerAta,
         makerToken: this.tokenPubKey,
         auth: this.auth,
@@ -134,9 +134,18 @@ class GibEscrow {
         tokenProgram,
         systemProgram: SystemProgram.programId,
       })
-      .signers([maker])
-      .rpc()
-      .then(this.confirmTx);
+      .transaction();
+
+    let { blockhash } = await this.connection.getLatestBlockhash();
+
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = walletProvider.publicKey;
+
+    const signedTransaction = await walletProvider.signTransaction(transaction);
+    const signature = await this.connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
+
     return signature;
   };
 
@@ -176,7 +185,7 @@ class GibEscrow {
   };
 
   private ownerTokenAta = async (owner: any, tokenPubKey: PublicKey) => {
-    const tAccount = await gibGetOrCreateAssociatedTokenAccount(
+    const tAccount = await this.gibGetOrCreateAssociatedTokenAccount(
       this.connection,
       owner,
       tokenPubKey,
@@ -186,82 +195,85 @@ class GibEscrow {
 
     return tAccount?.address;
   };
-}
 
-async function gibGetOrCreateAssociatedTokenAccount(
-  connection: Connection,
-  provider: any,
-  mint: PublicKey,
-  owner: PublicKey,
-  allowOwnerOffCurve = false,
-  commitment?: Commitment,
-  programId = TOKEN_PROGRAM_ID,
-  associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID
-): Promise<Account> {
-  const associatedToken = getAssociatedTokenAddressSync(
-    mint,
-    owner,
-    allowOwnerOffCurve,
-    programId,
-    associatedTokenProgramId
-  );
-
-  // This is the optimal logic, considering TX fee, client-side computation, RPC roundtrips and guaranteed idempotent.
-  // Sadly we can't do this atomically.
-  let account: Account;
-  try {
-    account = await getAccount(
-      connection,
-      associatedToken,
-      commitment,
-      programId
+  private gibGetOrCreateAssociatedTokenAccount = async (
+    connection: Connection,
+    provider: any,
+    mint: PublicKey,
+    owner: PublicKey,
+    allowOwnerOffCurve = false,
+    commitment?: Commitment,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID
+  ): Promise<Account> => {
+    const associatedToken = getAssociatedTokenAddressSync(
+      mint,
+      owner,
+      allowOwnerOffCurve,
+      programId,
+      associatedTokenProgramId
     );
-  } catch (error: unknown) {
-    console.log({ unk: error });
 
-    // TokenAccountNotFoundError can be possible if the associated address has already received some lamports,
-    // becoming a system account. Assuming program derived addressing is safe, this is the only case for the
-    // TokenInvalidAccountOwnerError in this code path.
-    if (
-      error instanceof TokenAccountNotFoundError ||
-      error instanceof TokenInvalidAccountOwnerError
-    ) {
-      // As this isn't atomic, it's possible others can create associated accounts meanwhile.
-      try {
-        const transaction = new Transaction().add(
-          createAssociatedTokenAccountInstruction(
-            provider.publicKey,
-            associatedToken,
-            owner,
-            mint,
-            programId,
-            associatedTokenProgramId
-          )
-        );
-
-        console.log({ transaction });
-
-        await provider.signAndSendTransaction(transaction);
-      } catch (error: unknown) {
-        // Ignore all errors; for now there is no API-compatible way to selectively ignore the expected
-        // instruction error if the associated account exists already.
-        console.log({ error });
-      }
-
-      // Now this should always succeed
+    // This is the optimal logic, considering TX fee, client-side computation, RPC roundtrips and guaranteed idempotent.
+    // Sadly we can't do this atomically.
+    let account: Account;
+    try {
       account = await getAccount(
         connection,
         associatedToken,
         commitment,
         programId
       );
-    } else {
-      console.log("it throws");
-      throw error;
-    }
-  }
+    } catch (error: unknown) {
+      console.log({ unk: error });
 
-  return account;
+      // TokenAccountNotFoundError can be possible if the associated address has already received some lamports,
+      // becoming a system account. Assuming program derived addressing is safe, this is the only case for the
+      // TokenInvalidAccountOwnerError in this code path.
+      if (
+        error instanceof TokenAccountNotFoundError ||
+        error instanceof TokenInvalidAccountOwnerError
+      ) {
+        // As this isn't atomic, it's possible others can create associated accounts meanwhile.
+        try {
+          const transaction = new Transaction().add(
+            createAssociatedTokenAccountInstruction(
+              provider.publicKey,
+              associatedToken,
+              owner,
+              mint,
+              programId,
+              associatedTokenProgramId
+            )
+          );
+
+          await provider.signAndSendTransaction(transaction);
+          const signedTransaction = await provider.signTransaction(transaction);
+          await this.connection.sendRawTransaction(
+            signedTransaction.serialize()
+          );
+
+        } catch (error: unknown) {
+          // Ignore all errors; for now there is no API-compatible way to selectively ignore the expected
+          // instruction error if the associated account exists already.
+          console.log({ error });
+        }
+
+        // Now this should always succeed
+        account = await getAccount(
+          connection,
+          associatedToken,
+          commitment,
+          programId
+        );
+      } else {
+        console.log("it throws");
+        throw error;
+      }
+    }
+
+    return account;
+  };
 }
 
 declare global {
