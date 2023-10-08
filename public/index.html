@@ -36,7 +36,8 @@
 
         const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
-        const provider = await getProvider(); // see "Detecting the Provider"
+        const provider = await getProvider(); // see "Detecting the Provider";
+        console.log({provider})
         const connect = async () => {
           try {
             const resp = await provider.request({ method: "connect" });
