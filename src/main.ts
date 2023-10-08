@@ -13,7 +13,6 @@ import {
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID as associatedTokenProgram,
   TOKEN_PROGRAM_ID as tokenProgram,
-  getOrCreateAssociatedTokenAccount,
   TOKEN_PROGRAM_ID,
   Account,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -80,7 +79,7 @@ class GibEscrow {
       [
         Buffer.from("escrow"),
         this.makerPublicKey.toBytes(),
-        this.seed.toArrayLike(Buffer, "le", 8).reverse(),
+        this.seed.toArrayLike(Buffer, "le", 8)
       ],
       this.program.programId
     )[0];
