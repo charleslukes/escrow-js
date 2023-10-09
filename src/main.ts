@@ -24,6 +24,7 @@ import {
 } from "@solana/spl-token";
 import { Buffer } from "buffer";
 import { randomU64 } from "../utils/helper";
+import bs58 from "bs58";
 
 window.Buffer = Buffer;
 
@@ -165,21 +166,24 @@ class GibEscrow {
   };
 
   withdrawEscrow = async (
-    taker: PublicKey,
-    makerPublicKey: PublicKey,
+    takerWallet: any,
+    makerPublicKey: string,
     u64Seed: number,
-    gibPayer: Keypair
+    gibPayerPK: string
   ) => {
-    const takerAta = await this.ownerTokenAta(taker, this.tokenPubKey);
+    const takerAta = await this.ownerTokenAta(takerWallet, this.tokenPubKey);
+    const maker = new PublicKey(makerPublicKey);
     const seedBN = new anchor.BN(u64Seed.toString());
-    const { auth, escrow, vault } = this.generatePDAs(makerPublicKey, seedBN);
+    const { auth, escrow, vault } = this.generatePDAs(maker, seedBN);
+    const unit8key = bs58.decode(gibPayerPK);
+    const gibPayer = Keypair.fromSecretKey(unit8key);
 
     const signature = await this.program.methods
       .take()
       .accounts({
         gibPayer: gibPayer.publicKey,
         takerAta,
-        taker: taker,
+        taker: takerWallet.publicKey,
         maker: makerPublicKey,
         makerToken: this.tokenPubKey,
         auth,
@@ -208,6 +212,10 @@ class GibEscrow {
   };
 
   private ownerTokenAta = async (owner: any, tokenPubKey: PublicKey) => {
+    console.log({
+      tokenPubKey,
+      x: owner.publicKey,
+    });
     const tAccount = await this.gibGetOrCreateAssociatedTokenAccount(
       this.connection,
       owner,
@@ -269,6 +277,11 @@ class GibEscrow {
               associatedTokenProgramId
             )
           );
+
+          let { blockhash } = await this.connection.getLatestBlockhash();
+
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = provider.publicKey;
 
           await provider.signAndSendTransaction(transaction);
           const signedTransaction = await provider.signTransaction(transaction);
