@@ -36,71 +36,77 @@ const opts = {
 class GibEscrow {
   programId = new PublicKey("AWLErDWVWkjWYRhkCdnaUxSrKYQqPxi7qGXvHNB1rQWk");
   seed: anchor.BN;
-  auth: anchor.web3.PublicKey;
-  escrow: anchor.web3.PublicKey;
-  vault: anchor.web3.PublicKey;
   tokenPubKey: PublicKey;
   makerPublicKey: PublicKey;
   program: anchor.Program<Escrow>;
   provider: anchor.AnchorProvider;
   connection: Connection;
 
-  constructor(
-    network: Cluster,
-    makerPublicKey: PublicKey,
-    tokenPubKey: PublicKey
-  ) {
+  constructor(network: Cluster, tokenPubKey: PublicKey) {
     const wallet = window.solana;
     if (!wallet) {
       throw new Error("Install a solana wallet");
     }
-
-    this.makerPublicKey = makerPublicKey;
     this.tokenPubKey = new PublicKey(tokenPubKey);
     this.connection = new Connection(clusterApiUrl(network), commitment);
     this.provider = new anchor.AnchorProvider(this.connection, wallet, {
       commitment,
     });
 
-    this.seed = new anchor.BN(randomU64().toString());
-
     this.program = new anchor.Program<Escrow>(
       IDL,
       this.programId,
       this.provider
     );
+  }
 
-    this.auth = PublicKey.findProgramAddressSync(
+  private generatePDAs = (makerPublicKey: PublicKey, u64num: anchor.BN) => {
+    const seedBN = new anchor.BN(u64num.toString());
+
+    const auth = PublicKey.findProgramAddressSync(
       [Buffer.from("auth")],
       this.program.programId
     )[0];
 
-    this.escrow = PublicKey.findProgramAddressSync(
+    const escrow = PublicKey.findProgramAddressSync(
       [
         Buffer.from("escrow"),
-        this.makerPublicKey.toBytes(),
-        this.seed.toArrayLike(Buffer, "le", 8)
+        makerPublicKey.toBytes(),
+        seedBN.toArrayLike(Buffer, "le", 8),
       ],
       this.program.programId
     )[0];
 
-    this.vault = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), this.escrow.toBuffer()],
+    const vault = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), escrow.toBuffer()],
       this.program.programId
     )[0];
-  }
+
+    return {
+      vault,
+      escrow,
+      auth,
+    };
+  };
 
   fundEscrow = async (walletProvider: any, amount: number) => {
     const makerAta = await this.ownerTokenAta(walletProvider, this.tokenPubKey);
+    const u64Seed = randomU64();
+    const seedBN = new anchor.BN(u64Seed.toString());
+    const { auth, escrow, vault } = this.generatePDAs(
+      walletProvider.publicKey,
+      seedBN
+    );
+
     const transaction = await this.program.methods
-      .make(this.seed, new anchor.BN(amount * 1e6))
+      .make(seedBN, new anchor.BN(amount * 1e6))
       .accounts({
         maker: walletProvider.publicKey,
         makerAta,
         makerToken: this.tokenPubKey,
-        auth: this.auth,
-        escrow: this.escrow,
-        vault: this.vault,
+        auth,
+        escrow,
+        vault,
         tokenProgram,
         associatedTokenProgram,
         systemProgram: SystemProgram.programId,
@@ -116,20 +122,30 @@ class GibEscrow {
     const signature = await this.connection.sendRawTransaction(
       signedTransaction.serialize()
     );
-    return signature;
+    return { signature, u64Seed };
   };
 
-  updateEscrow = async (walletProvider: any, amount: number) => {
+  updateEscrow = async (
+    u64Seed: number,
+    walletProvider: any,
+    amount: number
+  ) => {
     const makerAta = await this.ownerTokenAta(walletProvider, this.tokenPubKey);
+    const seedBN = new anchor.BN(u64Seed.toString());
+    const { auth, escrow, vault } = this.generatePDAs(
+      walletProvider.publicKey,
+      seedBN
+    );
+
     const transaction = await this.program.methods
       .update(new anchor.BN(amount * 1e6))
       .accounts({
         maker: walletProvider.publicKey,
         makerAta,
         makerToken: this.tokenPubKey,
-        auth: this.auth,
-        vault: this.vault,
-        escrow: this.escrow,
+        auth,
+        vault,
+        escrow,
         tokenProgram,
         systemProgram: SystemProgram.programId,
       })
@@ -148,24 +164,32 @@ class GibEscrow {
     return signature;
   };
 
-  withdrawEscrow = async (taker: Keypair, makerPublicKey: PublicKey) => {
+  withdrawEscrow = async (
+    taker: PublicKey,
+    makerPublicKey: PublicKey,
+    u64Seed: number,
+    gibPayer: Keypair
+  ) => {
     const takerAta = await this.ownerTokenAta(taker, this.tokenPubKey);
+    const seedBN = new anchor.BN(u64Seed.toString());
+    const { auth, escrow, vault } = this.generatePDAs(makerPublicKey, seedBN);
+
     const signature = await this.program.methods
       .take()
       .accounts({
-        gibPayer: taker.publicKey,
+        gibPayer: gibPayer.publicKey,
         takerAta,
-        taker: taker.publicKey,
+        taker: taker,
         maker: makerPublicKey,
         makerToken: this.tokenPubKey,
-        auth: this.auth,
-        escrow: this.escrow,
-        vault: this.vault,
+        auth,
+        escrow,
+        vault,
         tokenProgram,
         associatedTokenProgram,
         systemProgram: SystemProgram.programId,
       })
-      .signers([taker])
+      .signers([gibPayer])
       .rpc()
       .then(this.confirmTx);
 
@@ -251,7 +275,6 @@ class GibEscrow {
           await this.connection.sendRawTransaction(
             signedTransaction.serialize()
           );
-
         } catch (error: unknown) {
           // Ignore all errors; for now there is no API-compatible way to selectively ignore the expected
           // instruction error if the associated account exists already.
