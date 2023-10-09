@@ -17,7 +17,6 @@
     <h1>rollup-starter-app</h1>
     <p>The time is <span id="time-now">...</span></p>
     <button class="fund">Fund Escrow</button>
-    <button class="update">Update Escrow</button>
     <button class="withdraw">Withdraw Escrow</button>
     <script src="bundle.js"></script>
     <script>
@@ -37,7 +36,7 @@
         const usdcDevnetAddr = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 
         const provider = await getProvider(); // see "Detecting the Provider";
-        console.log({provider})
+        console.log({ provider });
         const connect = async () => {
           try {
             const resp = await provider.request({ method: "connect" });
@@ -54,27 +53,38 @@
         };
 
         const resp = await connect();
-        const escrow = new GibEscrow("devnet", resp.publicKey, usdcDevnetAddr);
+        const escrow = new GibEscrow("devnet", usdcDevnetAddr);
         const fund = document.querySelector(".fund");
-        const updateEscrow = document.querySelector(".update");
+        const withdrawEscrow = document.querySelector(".withdraw");
 
         // fund
         fund.addEventListener("click", async () => {
           try {
             // not sure how to pass keypair yet
-            const signature = await escrow.fundEscrow(provider, 0.01);
-            console.log({ signature });
+            const result = await escrow.fundEscrow(provider, 0.01);
+            console.log({ result });
           } catch (error) {
             console.log(error);
           }
         });
 
         // update
-        updateEscrow.addEventListener("click", async () => {
+
+        withdrawEscrow.addEventListener("click", async () => {
+          const talentProvider = provider;
+          const makerWalletAddress =
+            "A1w5cGXyB5DZRKYNpmmiMQYJqxb85yWDzY2LQHA9eBBk";
+          const seed = "854459578264306200";
+  
           try {
             // not sure how to pass keypair yet
-            const signature = await escrow.updateEscrow(provider, 0.01);
-            console.log({ signature });
+            const result = await escrow.withdrawEscrow(
+              talentProvider,
+              makerWalletAddress,
+              seed,
+              "<<<PASS PRIVATE KEY>>>"
+            );
+            console.log({ result });
           } catch (error) {
             console.log(error);
           }
