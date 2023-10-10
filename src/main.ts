@@ -61,7 +61,7 @@ class GibEscrow {
     );
   }
 
-  private generatePDAs = (makerPublicKey: PublicKey, u64num: anchor.BN) => {
+  private generatePDAs = (makerPublicKey: PublicKey, u64num: anchor.BN) => {    
     const seedBN = new anchor.BN(u64num.toString());
 
     const auth = PublicKey.findProgramAddressSync(
@@ -184,7 +184,7 @@ class GibEscrow {
         gibPayer: gibPayer.publicKey,
         takerAta,
         taker: takerWallet.publicKey,
-        maker: makerPublicKey,
+        maker,
         makerToken: this.tokenPubKey,
         auth,
         escrow,
