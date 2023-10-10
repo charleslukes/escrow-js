@@ -202,13 +202,15 @@ class GibEscrow {
 
   private confirmTx = async (signature: string) => {
     const latestBlockHash = await this.connection.getLatestBlockhash();
-    await this.connection.confirmTransaction(
+    const result = await this.connection.confirmTransaction(
       {
         signature,
         ...latestBlockHash,
       },
       commitment
     );
+
+    return result;
   };
 
   private ownerTokenAta = async (owner: any, tokenPubKey: PublicKey) => {
